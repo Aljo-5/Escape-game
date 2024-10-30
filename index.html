@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .game-container {
+            width: 400px;
+            margin: 20px auto;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        
+        #gameBoard {
+            width: 400px;
+            height: 400px;
+            border: 4px solid #333;
+            position: relative;
+            background: #f0f0f0;
+        }
+        
+        #snake {
+            width: 40px;
+            height: 40px;
+            background-color: green;
+            position: absolute;
+            border-radius: 50%;
+            transition: width 0.3s, height 0.3s;
+        }
+        
+        .exit {
+            width: 20px;
+            height: 25px;
+            background-color: yellow;
+            position: absolute;
+            right: 0;
+            top: 185px;
+        }
+        
+        .pill {
+            width: 15px;
+            height: 15px;
+            position: absolute;
+            border-radius: 50%;
+        }
+        
+        .grow-pill {
+            background-color: red;
+        }
+        
+        .shrink-pill {
+            background-color: blue;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .instructions {
+            margin: 20px 0;
+            padding: 10px;
+            background: #eee;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="instructions">
+            <p>Use arrow keys to move the Circle</p>
+            <p>🔵 Blue pill: Shrinks the circle</p>
+            <p>🔴 Red pill: Grows the circle</p>
+            <p>Escape through the yellow exit when small enough!</p>
+        </div>
+        <div id="gameBoard">
+            <div id="snake"></div>
+            <div class="exit"></div>
+            <div class="game-over"></div>
+        </div>
+    </div>
+
+    <script>
+        const snake = document.getElementById('snake');
+        const gameBoard = document.getElementById('gameBoard');
+        const gameOver = document.querySelector('.game-over');
+        const exit = document.querySelector('.exit');
+        
+        let snakePos = { x: 50, y: 200 };
+        let snakeSize = 50;
+        let gameActive = true;
+         
+        // Initialize snake position
+        snake.style.left = snakePos.x + 'px';
+        snake.style.top = snakePos.y + 'px';
+
+        // Movement speed
+        const moveSpeed = 5;
+
+        // Key state tracking
+        const keys = {
+            ArrowLeft: false,
+            ArrowRight: false,
+            ArrowUp: false,
+            ArrowDown: false
+        };
+
+        // Handle keydown
+        document.addEventListener('keydown', (e) => {
+            if (keys.hasOwnProperty(e.key)) {
+                keys[e.key] = true;
+                e.preventDefault(); // Prevent page scrolling
+            }
+        });
+
+        // Handle keyup
+        document.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.key)) {
+                keys[e.key] = false;
+            }
+        });
+
+        // Game loop
+        function gameLoop() {
+            if (!gameActive) return;
+
+            // Previous position
+            const prevX = snakePos.x;
+            const prevY = snakePos.y;
+
+            // Move snake based on key states
+            if (keys.ArrowLeft) snakePos.x -= moveSpeed;
+            if (keys.ArrowRight) snakePos.x += moveSpeed;
+            if (keys.ArrowUp) snakePos.y -= moveSpeed;
+            if (keys.ArrowDown) snakePos.y += moveSpeed;
+
+            // Boundary checks
+            snakePos.x = Math.max(0, Math.min(400 - snakeSize, snakePos.x));
+            snakePos.y = Math.max(0, Math.min(400 - snakeSize, snakePos.y));
+
+            // Update snake position
+            snake.style.left = snakePos.x + 'px';
+            snake.style.top = snakePos.y + 'px';
+
+            // Check for exit collision
+            const exitX = 370; // Exit x position
+            const exitY = 185; // Exit y position
+            const exitSize = 20;
+
+            // Calculate the center points of snake and exit
+            const snakeCenterX = snakePos.x + snakeSize / 2;
+            const snakeCenterY = snakePos.y + snakeSize / 2;
+            const exitCenterX = exitX + exitSize / 2;
+            const exitCenterY = exitY + exitSize / 2;
+
+            // Calculate distance between centers
+            const dx = snakeCenterX - exitCenterX;
+            const dy = snakeCenterY - exitCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // If snake is small enough and touching the exit
+            if (distance < (snakeSize / 2 + exitSize / 2) && snakeSize <= 20) {
+                gameActive = false;
+                showGameOver("You escaped! You win!");
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game loop
+        gameLoop();
+
+        // Function to spawn pills
+        function spawnPill() {
+            if (!gameActive) return;
+
+            const pill = document.createElement('div');
+            pill.className = 'pill ' + (Math.random() < 0.5 ? 'grow-pill' : 'shrink-pill');
+            
+            // Random position within game board
+            const x = Math.random() * (350 - 15);
+            const y = Math.random() * (350 - 15);
+            
+            pill.style.left = x + 'px';
+            pill.style.top = y + 'px';
+            
+            gameBoard.appendChild(pill);
+
+            // Remove pill after 3 seconds
+            setTimeout(() => {
+                if (pill.parentNode === gameBoard) {
+                    gameBoard.removeChild(pill);
+                }
+            }, 3000);
+
+            // Check for collision with snake
+            const checkCollision = setInterval(() => {
+                if (!gameActive || pill.parentNode !== gameBoard) {
+                    clearInterval(checkCollision);
+                    return;
+                }
+
+                const pillRect = pill.getBoundingClientRect();
+                const snakeRect = snake.getBoundingClientRect();
+
+                // Calculate centers
+                const pillCenterX = pillRect.left + pillRect.width / 2;
+                const pillCenterY = pillRect.top + pillRect.height / 2;
+                const snakeCenterX = snakeRect.left + snakeRect.width / 2;
+                const snakeCenterY = snakeRect.top + snakeRect.height / 2;
+
+                // Calculate distance
+                const dx = pillCenterX - snakeCenterX;
+                const dy = pillCenterY - snakeCenterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // Check collision using distance
+                if (distance < (snakeSize / 2 + 8.5)) { // 7.5 is half of pill size
+                    // Collision detected
+                    if (pill.classList.contains('shrink-pill')) {
+                        snakeSize = Math.max(20, snakeSize - 10);
+                    } else {
+                        snakeSize = Math.min(60, snakeSize + 10);
+                    }
+
+                    snake.style.width = snakeSize + 'px';
+                    snake.style.height = snakeSize + 'px';
+
+                    gameBoard.removeChild(pill);
+                    clearInterval(checkCollision);
+                }
+            }, 50);
+        }
+
+        // Spawn pills every 2 seconds
+        setInterval(spawnPill, 2000);
+
+        function showGameOver(message) {
+            gameOver.textContent = message;
+            gameOver.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
